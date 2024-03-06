@@ -1,0 +1,66 @@
+version: "3"
+
+services:
+  chirpstack-network-server:
+    #image: chirpstack/chirpstack-network-server:3
+    build: ./zysmart-network
+    volumes:
+      - ./configuration/chirpstack-network-server:/etc/chirpstack-network-server
+      - ./zysmart-network/project:/usr/local/zysmart-network
+    restart: always
+    command:
+      /usr/local/zysmart-network/chirpstack-network-server
+    depends_on:
+      - postgresql
+      - mosquitto
+
+  chirpstack-application-server:
+    restart: always
+    image: chirpstack/chirpstack-application-server:3
+    ports:
+      - 6080:8080
+    volumes:
+      - ./configuration/chirpstack-application-server:/etc/chirpstack-application-server
+    depends_on:
+      - chirpstack-network-server
+
+  chirpstack-gateway-bridge:
+    restart: always
+    image: chirpstack/chirpstack-gateway-bridge:3
+    ports:
+      - 1702:1700/udp
+    volumes:
+      - ./configuration/chirpstack-gateway-bridge:/etc/chirpstack-gateway-bridge
+    depends_on: 
+      - mosquitto
+
+  postgresql:
+    restart: always
+    image: postgres:9.6-alpine
+    environment:
+      - POSTGRES_PASSWORD=root
+    ports:
+      - 5432:5432
+    volumes:
+      - ./configuration/postgresql/initdb:/docker-entrypoint-initdb.d
+      - postgresqldata:/var/lib/postgresql/data
+
+  redis:
+    restart: always
+    image: redis:5-alpine
+    ports: 
+      - 127.0.0.1:6379:6379
+    volumes:
+      - redisdata:/data
+
+  mosquitto:
+    restart: always
+    image: eclipse-mosquitto:2
+    ports:
+      - 1883:1883
+    volumes: 
+      - ./configuration/eclipse-mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+volumes:
+  postgresqldata:
+  redisdata:
